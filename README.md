@@ -1,8 +1,6 @@
-# Anno-Mage: A Semi Automatic Image Annotation Tool
+# A Semi Automatic Image Annotation Tool
 
-![alt text](https://raw.githubusercontent.com/virajmavani/semi-auto-image-annotation-tool/master/demo.gif)
-
-Semi Automatic Image Annotation Toolbox with RetinaNet as the suggesting algorithm. The toolbox suggests 80 class objects from the MS COCO dataset using a pretrained RetinaNet model.
+Semi Automatic Image Annotation Toolbox for groud detection. 
 
 ## Installation
 
@@ -13,8 +11,6 @@ Semi Automatic Image Annotation Toolbox with RetinaNet as the suggesting algorit
    this package does not define a dependency on `tensorflow` as it will try to install that (which at least on Arch Linux results in an incorrect installation).
    Please make sure `tensorflow` is installed as per your systems requirements.
    Also, make sure Keras 2.1.3 or higher and OpenCV 3.x is installed.
-
-3) Download the [pretrained weights](https://github.com/fizyr/keras-retinanet/releases/download/0.3.1/resnet50_coco_best_v2.1.0.h5) and save it in /snapshots.
 
 ### Dependencies
 
@@ -41,11 +37,7 @@ python main.py
 
 Tested on:
 
-1. Windows 10
-
-2. Linux 16.04
-
-3. macOS High Sierra
+Windows 10
 
 ### Acknowledgments
 
@@ -54,3 +46,5 @@ Tested on:
 2) [Keras implementation of RetinaNet object detection](https://github.com/fizyr/keras-retinanet)
 
 3) [Computer Vision Group](https://cvgldce.github.io/), L.D. College of Engineering
+
+4) [virajmavani](https://github.com/virajmavani/semi-auto-image-annotation-tool)
