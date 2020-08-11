@@ -24,9 +24,9 @@ For, Python >= 3.5
 
 ### Instructions
 
-1) Select the COCO object classes for which you need suggestions from the drop-down menu and add them.
+1) Select the pedestrians' ID for which you need suggestions add draw a box at the position you want.
 
-2) When annotating manually, select the object class from the List and while keep it selected, select the BBox.
+2) When annotating manually, select the pedestrians who are in a group, "add" it in to data file.
 
 3) The final annotations can be found in the file `annotations.csv` in ./annotations/
 
