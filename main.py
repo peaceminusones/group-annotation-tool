@@ -13,12 +13,6 @@ from tkinter import messagebox
 from tkinter import filedialog
 from PIL import Image, ImageTk
 
-import keras
-
-from keras_retinanet import models
-from keras_retinanet.utils.image import preprocess_image
-
-# import miscellaneous modules
 import os
 import numpy as np
 import tensorflow as tf
@@ -27,15 +21,6 @@ import math
 import pandas as pd
 import cv2
 import filetype
-
-def get_session():
-    config = tf.ConfigProto()
-    config.gpu_options.allow_growth = True
-    return tf.Session(config=config)
-
-keras.backend.tensorflow_backend.set_session(get_session())
-model_path = os.path.join('.', 'snapshots', 'resnet50_coco_best_v2.1.0.h5')
-model = models.load_model(model_path, backbone_name='resnet50')
 
 # # distort matrix ----------------------------------------------
 # mtx = np.array([[981.0451,0.,686.7909],
@@ -47,7 +32,7 @@ model = models.load_model(model_path, backbone_name='resnet50')
 class MainGUI:
     def __init__(self, master):
         self.parent = master
-        self.parent.title("Semi Automatic Image Annotation Tool")
+        self.parent.title("Group Annotation Tool")
         self.frame = Frame(self.parent)
         # expand = 1:打开fill属性
         # fill=X 当GUI窗体大小发生变化时，widget在X方向跟随GUI窗体变化 
@@ -143,13 +128,12 @@ class MainGUI:
 
         self.disp = Label(self.ctrlPanel, text='Coordinates:')
 
-        self.zoomPanelLabel = Label(self.ctrlPanel, text="Precision View Panel")
+        self.zoomPanelLabel = Label(self.ctrlPanel, text="Precision View")
         self.zoomPanelLabel.pack(fill=X, side=TOP)
 
         self.zoomcanvas = Canvas(self.ctrlPanel, width=150, height=150) 
         self.zoomcanvas.pack(fill=X, side=TOP, anchor='center')
 
-        # self.newtrackidlabel = Label(self.ctrlPanel, text="New track Id (from"+str(self.max_track_id+1)+')')
         self.newtrackidlabel = Label(self.ctrlPanel, text="New track Id")
         self.newtrackidlabel.pack(fill=X, side=TOP)
         self.newtrackid = Entry(self.ctrlPanel)
@@ -166,7 +150,9 @@ class MainGUI:
         self.labelTrackId = Label(self.ctrlPanel, text="track id(split by space)").pack(fill=X, side=TOP)
         self.entryTrackId = Entry(self.ctrlPanel)
         self.entryTrackId.pack(fill=X, side=TOP,anchor='center')
-        self.labelGroupId = Label(self.ctrlPanel, text="Group id").pack(fill=X, side=TOP)
+        
+        self.labelGroupId = Label(self.ctrlPanel, text="Group id")
+        self.labelGroupId.pack(fill=X, side=TOP)
         self.entryGroupId = Entry(self.ctrlPanel)
         self.entryGroupId.pack(fill=X, side=TOP,anchor='center')
         self.buttongroup = Button(self.ctrlPanel, text="Group", command=self.button_groupid).pack(fill=X, side=TOP)
@@ -230,21 +216,22 @@ class MainGUI:
             c = c + 1
             rval, frame = video.read()
             
-            if rval:
-                # # undistort-------------------------------------------
-                # h,w = frame.shape[:2]
-                # newcameramtx, roi = cv2.getOptimalNewCameraMatrix(mtx,dist,(w,h),1,(w,h))
-                # frame = cv2.undistort(frame,mtx,dist,None,newcameramtx)
-                # x,y,w,h = roi
-                # frame = frame[y:y+h,x:x+w]
-                # # ----------------------------------------------------
+            if(c%30==0):
+                if rval:
+                    # # undistort-------------------------------------------
+                    # h,w = frame.shape[:2]
+                    # newcameramtx, roi = cv2.getOptimalNewCameraMatrix(mtx,dist,(w,h),1,(w,h))
+                    # frame = cv2.undistort(frame,mtx,dist,None,newcameramtx)
+                    # x,y,w,h = roi
+                    # frame = frame[y:y+h,x:x+w]
+                    # # ----------------------------------------------------
 
-                frame_dir = parent_dir + '/' + 'frame data/' + base_name + '/'
-            # if rval:
-                cv2.imwrite(frame_dir + base_name[:-4] + str(c) + '.jpg', frame)
-                cv2.waitKey(1)
-            else:
-                break
+                    frame_dir = parent_dir + '/' + 'frame data/' + base_name + '/'
+                    cv2.imwrite(frame_dir + base_name[:-4] + str(c) + '.jpg', frame)
+                    # cv2.imwrite(frame_dir + '%06d.jpg'%(c), frame)
+                    cv2.waitKey(1)
+                else:
+                    break
         video.release()
         print('save '+ base_name +' success')
         messagebox.showinfo(title='success', message='提取帧结束')
@@ -325,20 +312,28 @@ class MainGUI:
         isExists=os.path.exists('./csv/' + base_name + '.csv')  # 判断当前文件是否存在
         if not isExists:
             messagebox.showinfo(title='提示', message='不存在相应的数据文件')
+            self.img_message = pd.DataFrame(columns=['frame_id', 'track_id', 'x', 'y', 'w', 'h', 'group']) 
         else:
             self.img_message = pd.read_csv('./csv/' + base_name + '.csv') # 打开相应的数据集文件
             col_name = self.img_message.columns.values
-            # print(len(col_name))
-            if (len(col_name) == 7):
-                self.img_message['group_id'] = None      # 添加一列groupid
-            
-            self.load_image(file, event)
+            if (len(col_name) == 6):
+                self.img_message['group_id'] = 0      # 添加一列groupid, 0表示单个行人
+
+        self.load_image(file, event)
+        
 
     """
     reload the new track id
-    """    
+    """
     def reload_track_id(self):
-        self.max_track_id = self.img_message.loc[:,"track_id"].max()   # 找到trackid的最大值，以防出现没有检测到的情况，可以添加新的检测框
+        if(self.img_message.shape[0] > 0):
+            # 找到trackid的最大值，以防出现没有检测到的情况，可以添加新的检测框
+            self.max_track_id = self.img_message.loc[:,"track_id"].max()
+            max_group_id = self.img_message.loc[:,"group_id"].max()
+        else:
+            self.max_track_id = int(0)
+            max_group_id = int(0)
+            
         alltrackid = self.img_message.loc[:,"track_id"].values
         # print(alltrackid)
         new_track_id = self.max_track_id + 1
@@ -346,14 +341,17 @@ class MainGUI:
             if i not in alltrackid:
                 new_track_id = i
                 break
-        return new_track_id
+
+        new_group_id = max_group_id + 1
+        return new_track_id, int(new_group_id)
 
     """
     把当前的图片读取出来
     """
     def load_image(self, file, event):
-        new_track_id = self.reload_track_id()
+        new_track_id, new_group_id = self.reload_track_id()
         self.newtrackidlabel["text"] = "New track Id (suggest: " + str(new_track_id)+')'  # 把当前最大的trackid显示到窗口上，作为提示
+        self.labelGroupId["text"] = "New group Id (suggest: " + str(new_group_id)+')'
         # global img_message
         self.img = Image.open(file)
         self.imgfile = self.imageList[self.cur]
@@ -381,6 +379,8 @@ class MainGUI:
         # 在这里读取图片的同时把图片里的检测框也读出来！！！！！
         self.frameId = self.imgfile[lengh-len(self.imgfile):-4]
         # print(self.frameId)
+        if self.img_message.empty:
+            return
         choosebyFrameId = self.img_message[(self.img_message.frame_id == int(self.frameId))]
         for i in range(len(choosebyFrameId)):
             x = int(((choosebyFrameId.iloc[[i],[2]]).values[0])[0] / self.rate)
@@ -449,9 +449,9 @@ class MainGUI:
                     chooseBigFrameId = self.img_message[self.img_message.frame_id > int(self.frameId)] # 筛选出比当前frameid大的所有dataframe
                     # 如果没有比当前frameid大的数据，即该帧在最后，插在最后
                     if chooseBigFrameId.empty:
-                        time = self.img_message.time.tolist()[0]                          # 得到时间
-                        lastframeid = self.img_message.frame_id.tolist()[0]               # 得到最后一行的frameid
-                        curframetime= time + 39*(int(self.frameId)-lastframeid)
+                        # time = self.img_message.time.tolist()[0]                          # 得到时间
+                        # lastframeid = self.img_message.frame_id.tolist()[0]               # 得到最后一行的frameid
+                        # curframetime= time + 39*(int(self.frameId)-lastframeid)
                         x = list(self.bboxList[idx])[0] * self.rate
                         y = list(self.bboxList[idx])[1] * self.rate
                         w = (list(self.bboxList[idx])[2] - list(self.bboxList[idx])[0]) * self.rate
@@ -461,17 +461,17 @@ class MainGUI:
                         #     groupid = int(get_groupid)
                         # else:
                         #     groupid = None
-                        insertRow = pd.DataFrame([[int(self.frameId), trackid, x , y, w, h, curframetime, None]],
-                                                columns = ['frame_id', 'track_id', 'x', 'y', 'w', 'h', 'time', 'group_id'])
+                        insertRow = pd.DataFrame([[int(self.frameId), trackid, x , y, w, h, 0]],
+                                                columns = ['frame_id', 'track_id', 'x', 'y', 'w', 'h', 'group_id'])
                         self.img_message = self.img_message.append(insertRow, ignore_index=True)
 
                     # 有比当前frameid大的数据，即该帧在开头或者中间，按照顺序插入
                     else:
                         bigerIdrow = int(chooseBigFrameId.index.tolist()[0])                               # 得到行号
                         
-                        time = chooseBigFrameId.time.tolist()[0]                                           # 得到时间
-                        nextframeid = chooseBigFrameId.frame_id.tolist()[0]                                # 得到frameid
-                        curframetime = time - 39*(nextframeid - int(self.frameId))
+                        # time = chooseBigFrameId.time.tolist()[0]                                           # 得到时间
+                        # nextframeid = chooseBigFrameId.frame_id.tolist()[0]                                # 得到frameid
+                        # curframetime = time - 39*(nextframeid - int(self.frameId))
                         x = list(self.bboxList[idx])[0] * self.rate
                         y = list(self.bboxList[idx])[1] * self.rate
                         w = (list(self.bboxList[idx])[2] - list(self.bboxList[idx])[0]) * self.rate
@@ -481,8 +481,8 @@ class MainGUI:
                         #     groupid = int(get_groupid)
                         # else:
                         #     groupid = None
-                        insertRow = pd.DataFrame([[int(self.frameId), trackid, x , y, w, h, curframetime, None]],
-                                                columns = ['frame_id', 'track_id', 'x', 'y', 'w', 'h', 'time', 'group_id'])
+                        insertRow = pd.DataFrame([[int(self.frameId), trackid, x , y, w, h, 0]],
+                                                columns = ['frame_id', 'track_id', 'x', 'y', 'w', 'h', 'group_id'])
                         above = self.img_message.loc[:bigerIdrow-1]
                         below = self.img_message.loc[bigerIdrow:]
                         self.img_message = above.append(insertRow, ignore_index=True).append(below, ignore_index=True)
@@ -493,7 +493,7 @@ class MainGUI:
                     maxIdOfTheFrame = choosebyFrame.loc[:,"track_id"].max()                   # 然后找到trackid的最大值
                     choosebyFrameandMaxid = choosebyFrame[(choosebyFrame.track_id == maxIdOfTheFrame)] # 把最大值行筛选出来
                     row = int(choosebyFrameandMaxid.index.tolist()[0])                        # 得到行号
-                    time = choosebyFrame.time.tolist()[0]                                     # 一个frame下的检测框时间是相同的
+                    # time = choosebyFrame.time.tolist()[0]                                     # 一个frame下的检测框时间是相同的
                     # ---------------------------------------------------------------------------------------------------
                     x = list(self.bboxList[idx])[0] * self.rate
                     y = list(self.bboxList[idx])[1] * self.rate
@@ -504,8 +504,8 @@ class MainGUI:
                     #     groupid = int(get_groupid)
                     # else:
                     #     groupid = None
-                    insertRow = pd.DataFrame([[int(self.frameId), trackid, x , y, w, h, time, None]],
-                                            columns = ['frame_id','track_id','x','y','w','h','time','group_id'])
+                    insertRow = pd.DataFrame([[int(self.frameId), trackid, x , y, w, h, 0]],
+                                            columns = ['frame_id','track_id','x','y','w','h','group_id'])
                     above = self.img_message.loc[:row]
                     below = self.img_message.loc[row+1:]
                     self.img_message = above.append(insertRow,ignore_index=True).append(below,ignore_index=True)
@@ -532,9 +532,10 @@ class MainGUI:
         list_choosebyFrameId = choosebyFrameId.index.tolist()
         groupid = []
         for i in list_choosebyFrameId:
-            temp = ((self.img_message.iloc[[i],[7]]).values[0])[0]
-            if temp and temp not in groupid:
+            temp = ((self.img_message.iloc[[i],[6]]).values[0])[0]
+            if temp!=0 and temp not in groupid:
                 groupid.append(temp)
+
         for i in groupid:
             choosebyFrameandGroup = self.img_message[(self.img_message.frame_id == int(self.frameId)) &
                                                      (self.img_message.group_id == int(i))]
@@ -580,7 +581,7 @@ class MainGUI:
                                                       (self.img_message.frame_id == int(self.frameId))]
                 list_choosebyTrack = choosebyTrackFrame.index.tolist()
                 for index in list_choosebyTrack:
-                    self.img_message.iloc[[index],[7]] = int(entryGroupId)
+                    self.img_message.iloc[[index],[6]] = int(entryGroupId)
             self.draw_groupid()
         else:
             messagebox.showinfo(title='',message='TrackId & GroupId\ncannot be empty')
@@ -881,7 +882,7 @@ class MainGUI:
                                           (self.img_message.group_id == int(self.boxgroupid[bboxgroupId]))]
             row = alterDataframe.index.tolist()
             for index in row:
-                self.img_message.iloc[[index],[7]] = None
+                self.img_message.iloc[[index],[6]] = 0
         del self.boxgroupid[bboxgroupId]
         self.objectListgroup.delete(idx)
         print(self.bboxIdgroupList)
@@ -902,7 +903,7 @@ class MainGUI:
                                             (self.img_message.group_id == int(self.boxgroupid[bboxgroupId]))]
                 row = alterDataframe.index.tolist()
                 for index in row:
-                    self.img_message.iloc[[index],[7]] = None
+                    self.img_message.iloc[[index],[6]] = 0
             del self.boxgroupid[bboxgroupId]
         self.objectListgroup.delete(idx)
         self.objectLabelList = []
@@ -921,8 +922,8 @@ class MainGUI:
         else:
             basename = os.path.basename(self.globalfiledir)
             parent_dir = os.path.dirname(os.path.dirname(self.globalfiledir))
-            
-        self.img_message.to_csv(parent_dir + '/' + 'csv/out_' + basename + '.csv')
+        
+        self.img_message.to_csv(parent_dir + '/' + 'csv/out_' + basename + '.csv', index=0)
         print("save success")
         messagebox.showinfo(title='提示', message='save success')
         print(self.img_message)

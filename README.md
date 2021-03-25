@@ -7,20 +7,13 @@ Semi Automatic Image Annotation Toolbox for groud detection.
 1) Clone this repository.
 
 2) In the repository, execute `pip install -r requirements.txt`.
-   Note that due to inconsistencies with how `tensorflow` should be installed,
-   this package does not define a dependency on `tensorflow` as it will try to install that (which at least on Arch Linux results in an incorrect installation).
-   Please make sure `tensorflow` is installed as per your systems requirements.
-   Also, make sure Keras 2.1.3 or higher and OpenCV 3.x is installed.
+   Also, make sure OpenCV 3.x is installed.
 
 ### Dependencies
 
-1) Tensorflow >= 1.7.0
+1) OpenCV = 3.x
 
-2) OpenCV = 3.x
-
-3) Keras >= 2.1.3
-
-For, Python >= 3.5
+2) Python >= 3.5
 
 ### Instructions
 
